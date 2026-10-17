@@ -32,8 +32,8 @@ Then delete `harvey_deploy` from your PC, or keep it somewhere safe.
 
 **5. Configure Harvey on the server** (as root, then as harvey):
 
-    scp .env harvey.local.yaml root@161.97.118.140:/home/harvey/harvey/
-    ssh root@161.97.118.140 'chown harvey:harvey /home/harvey/harvey/{.env,harvey.local.yaml}'
+    scp .env harvey.local.yaml root@161.97.118.140:/www/wwwroot/harvey/
+    ssh root@161.97.118.140 'chown harvey:harvey /www/wwwroot/harvey/{.env,harvey.local.yaml}'
     ssh root@161.97.118.140
     su - harvey
     claude login            # open the URL on your PC, paste the code back
@@ -42,7 +42,7 @@ Then delete `harvey_deploy` from your PC, or keep it somewhere safe.
     systemctl restart harvey
 
 Gmail: run `harvey gmail auth` on your PC, then copy `data/gmail_token.json`
-to `/home/harvey/harvey/data/` (owned by harvey).
+to `/www/wwwroot/harvey/data/` (owned by harvey).
 
 ## Day to day
 

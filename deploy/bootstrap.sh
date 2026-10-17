@@ -10,7 +10,7 @@ set -euo pipefail
 
 DEPLOY_PUBKEY="${1:?usage: bootstrap.sh \"ssh-ed25519 AAAA... github-deploy\"}"
 APP_USER=harvey
-APP_DIR=/home/$APP_USER/harvey
+APP_DIR=/www/wwwroot/harvey
 
 apt-get update
 apt-get install -y --no-install-recommends \

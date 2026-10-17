@@ -8,10 +8,10 @@ Wants=network-online.target
 [Service]
 User=harvey
 Group=harvey
-WorkingDirectory=/home/harvey/harvey
-Environment=PATH=/home/harvey/harvey/.venv/bin:/home/harvey/.local/bin:/usr/local/bin:/usr/bin:/bin
+WorkingDirectory=/www/wwwroot/harvey
+Environment=PATH=/www/wwwroot/harvey/.venv/bin:/home/harvey/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/home/harvey/harvey/.venv/bin/harvey run
+ExecStart=/www/wwwroot/harvey/.venv/bin/harvey run
 Restart=always
 RestartSec=30
 
