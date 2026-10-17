@@ -46,8 +46,14 @@ jobs:
           KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           install -d -m 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+          # Strip Windows line endings: a key pasted from Notepad fails with
+          # "error in libcrypto".
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
+          if ! ssh-keygen -y -P '' -f ~/.ssh/id_deploy > /dev/null 2>&1; then
+            echo "::error::VPS_SSH_KEY is not a usable private key. Paste the whole private key file (harvey_deploy, not the .pub), from -----BEGIN to -----END, with no passphrase. PuTTY .ppk keys don't work."
+            exit 1
+          fi
           if [ -n "$KNOWN_HOSTS" ]; then
             printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
