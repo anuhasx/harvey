@@ -1,0 +1,19 @@
+# systemd unit for Harvey on a VPS. Installed by deploy/bootstrap.sh;
+# restarted by the deploy workflow after every successful deploy.
+[Unit]
+Description=Harvey autonomous sales agent
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=harvey
+Group=harvey
+WorkingDirectory=/home/harvey/harvey
+Environment=PATH=/home/harvey/harvey/.venv/bin:/home/harvey/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/harvey/harvey/.venv/bin/harvey run
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
