@@ -50,14 +50,22 @@ sudo -u "$APP_USER" -H bash -c 'curl -fsSL https://claude.ai/install.sh | sh' ||
 
 # Service + narrow sudo rule for the deploy.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-install -m 644 "$SCRIPT_DIR/harvey.service" /etc/systemd/system/harvey.service
+# One unit per market instance; each has its own folder, config and database.
+SERVICES="harvey harvey-italy"
+RULES=""
+for svc in $SERVICES; do
+    install -m 644 "$SCRIPT_DIR/$svc.service" /etc/systemd/system/$svc.service
+    install -d -o "$APP_USER" -g "$APP_USER" "$(dirname "$APP_DIR")/$svc" "$(dirname "$APP_DIR")/$svc/data"
+    # Listed one by one: a wildcard would also match "harvey sshd".
+    RULES="$RULES${RULES:+, }/usr/bin/systemctl restart $svc, /usr/bin/systemctl is-active $svc, /usr/bin/systemctl status $svc *"
+done
 cat > /etc/sudoers.d/harvey-deploy <<SUDO
-$APP_USER ALL=(root) NOPASSWD: /usr/bin/systemctl restart harvey, /usr/bin/systemctl is-active harvey, /usr/bin/systemctl status harvey *
+$APP_USER ALL=(root) NOPASSWD: $RULES
 SUDO
 chmod 440 /etc/sudoers.d/harvey-deploy
 visudo -cf /etc/sudoers.d/harvey-deploy
 systemctl daemon-reload
-systemctl enable harvey
+systemctl enable $SERVICES
 
 echo
 echo "Bootstrap done. Next: push to main (or run the Deploy workflow), then"

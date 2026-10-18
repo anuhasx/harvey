@@ -94,7 +94,13 @@ async def decide_next_action(
     draft_campaigns = summary.get("draft_campaigns", 0) or 0
     open_conversations = summary.get("open_conversations", 0) or 0
 
-    if open_conversations > 0:
+    if not config.channels.email.enabled:
+        # Lead-list mode: Harvey only builds the prospect list (exported with
+        # `harvey export`). Writing drafts would spend quota on emails that are
+        # never sent, and an unsendable draft would pin every later cycle on
+        # send_campaign, so prospecting would stop after the first batch.
+        action, reason = "prospect", "email is off; building the lead list"
+    elif open_conversations > 0:
         action, reason = "handle_replies", f"{open_conversations} open conversation(s) waiting"
     elif draft_campaigns > 0:
         action, reason = "send_campaign", f"{draft_campaigns} draft campaign(s) ready to deploy"

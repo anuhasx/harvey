@@ -8,7 +8,8 @@
 # Required repo secrets:  VPS_SSH_KEY      private key whose .pub was given to bootstrap.sh
 # Optional repo secrets:  VPS_KNOWN_HOSTS  output of `ssh-keyscan 161.97.118.140`
 # Optional repo variables: VPS_HOST (default 161.97.118.140), VPS_USER (default harvey),
-#                          APP_DIR (default /www/wwwroot/harvey)
+#                          INSTANCES (space-separated dir:service pairs, one per market;
+#                          default: the Sri Lanka and Italy instances below)
 name: deploy
 
 on:
@@ -35,7 +36,8 @@ jobs:
     env:
       VPS_HOST: ${{ vars.VPS_HOST || '161.97.118.140' }}
       VPS_USER: ${{ vars.VPS_USER || 'harvey' }}
-      APP_DIR: ${{ vars.APP_DIR || '/www/wwwroot/harvey' }}
+      # One Harvey per market, each with its own folder, config and database.
+      INSTANCES: ${{ vars.INSTANCES || '/www/wwwroot/harvey:harvey /www/wwwroot/harvey-italy:harvey-italy' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -69,26 +71,32 @@ jobs:
       - name: Copy code
         run: |
           git rev-parse --short HEAD > .deployed-sha
-          for attempt in 1 2 3 4 5; do
-            rsync -az --delete \
-              --exclude '.git/' --exclude '.github/' --exclude 'tests/' \
-              --exclude '.venv/' --exclude 'data/' --exclude '.env' \
-              --exclude 'harvey.local.yaml' \
-              --exclude 'skills/product_knowledge.md' --exclude 'skills/competitive_intel.md' \
-              --exclude 'linkedin_cookies.json' --exclude '*.egg-info/' \
-              --exclude 'logs/' --exclude '*_venv/' --exclude '.user.ini' \
-              ./ "vps:$APP_DIR/" && break
-            [ "$attempt" = 5 ] && exit 1
-            echo "rsync failed, retrying in 20s"; sleep 20
+          for instance in $INSTANCES; do
+            APP_DIR="${instance%%:*}"
+            for attempt in 1 2 3 4 5; do
+              rsync -az --delete \
+                --exclude '.git/' --exclude '.github/' --exclude 'tests/' \
+                --exclude '.venv/' --exclude 'data/' --exclude '.env' \
+                --exclude 'harvey.local.yaml' \
+                --exclude 'skills/product_knowledge.md' --exclude 'skills/competitive_intel.md' \
+                --exclude 'linkedin_cookies.json' --exclude '*.egg-info/' \
+                --exclude 'logs/' --exclude '*_venv/' --exclude '.user.ini' \
+                ./ "vps:$APP_DIR/" && break
+              [ "$attempt" = 5 ] && exit 1
+              echo "rsync failed, retrying in 20s"; sleep 20
+            done
           done
 
       - name: Install and restart
         run: |
-          for attempt in 1 2 3; do
-            ssh vps "bash $APP_DIR/deploy/remote-deploy.sh" && exit 0
-            rc=$?
-            # 255 = SSH itself failed (dropped connection); anything else is a real deploy failure.
-            [ "$rc" = 255 ] || exit "$rc"
-            echo "SSH dropped, retrying in 20s"; sleep 20
+          for instance in $INSTANCES; do
+            APP_DIR="${instance%%:*}"; SERVICE="${instance##*:}"
+            for attempt in 1 2 3; do
+              ssh vps "bash $APP_DIR/deploy/remote-deploy.sh $SERVICE" && continue 2
+              rc=$?
+              # 255 = SSH itself failed (dropped connection); anything else is a real deploy failure.
+              [ "$rc" = 255 ] || exit "$rc"
+              echo "SSH dropped, retrying in 20s"; sleep 20
+            done
+            exit 1
           done
-          exit 1

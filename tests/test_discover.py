@@ -644,6 +644,22 @@ async def test_osm_maps_the_trades_it_does_know():
 
 
 @pytest.mark.asyncio
+async def test_osm_maps_storefront_businesses_in_english_and_italian():
+    provider = D.OpenStreetMap()
+    assert provider._tags("Supermarket") == ["shop=supermarket", "shop=convenience"]
+    assert provider._tags("Supermercato") == ["shop=supermarket", "shop=convenience"]
+    assert provider._tags("Clothing boutique")[0] == "shop=clothes"
+    assert provider._tags("Negozio di abbigliamento")[0] == "shop=clothes"
+    assert provider._tags("Ristorante") == ["amenity=restaurant"]
+    assert provider._tags("Farmacia")[0] == "amenity=pharmacy"
+    assert provider._tags("Electronics and mobile shop")[0] == "shop=electronics"
+    # Short Italian words that hide inside unrelated ones must not match.
+    assert provider._tags("Agenzia immobiliare") == []
+    # The earlier, more specific trades still win.
+    assert provider._tags("cosmetic dentist") == ["amenity=dentist"]
+
+
+@pytest.mark.asyncio
 async def test_an_unmappable_term_is_reported_not_silently_skipped(
         state, config, register, monkeypatch):
     """The run must surface why a query produced nothing."""

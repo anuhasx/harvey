@@ -29,6 +29,7 @@ import json
 import logging
 import random
 import re
+import time
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, quote_plus, urlparse
 
@@ -58,6 +59,21 @@ BACKOFF_BASE = 1.5  # seconds; grows exponentially per attempt
 MAX_RESULTS_PER_QUERY = 20
 MAX_COMPANIES_PER_CYCLE = 10
 MAX_PROSPECTS_PER_CYCLE = 25
+
+# Web searches only take the first couple of industries and one place per
+# cycle. Rotating which ones, on the heartbeat clock, walks the whole ICP over
+# time instead of re-running the same three queries every cycle and finding
+# nothing new after the first day.
+ROTATE_SECONDS = 15 * 60
+
+
+def _rotate(items: list, k: int, now: float | None = None) -> list:
+    """Up to k items from a list, starting at a point that moves each heartbeat."""
+    if not items:
+        return []
+    tick = int((time.time() if now is None else now) // ROTATE_SECONDS)
+    start = (tick * k) % len(items)
+    return [items[(start + i) % len(items)] for i in range(min(k, len(items)))]
 
 # Hunter domain-searches per heartbeat. The monthly budget itself is shared
 # with email-pattern lookups and set by HUNTER_MONTHLY_SEARCHES (see
@@ -925,7 +941,7 @@ class Scout:
             return []
 
         directory_queries = []
-        for industry in industries[:2]:
+        for industry in _rotate(industries, 2):
             directory_queries.extend([
                 f'site:g2.com/categories "{industry}"',
                 f'site:clutch.co "{industry}" companies',
@@ -1050,12 +1066,12 @@ class Scout:
     def _build_company_search_queries(self) -> list[str]:
         """Build search queries to find ICP-matching companies."""
         queries = []
-        industries = self.config.icp.industries or [""]
-        geos = self.config.icp.geography or [""]
+        industries = _rotate(self.config.icp.industries or [""], 2)
+        geos = _rotate(self.config.icp.geography or [""], len(industries))
         size = self.config.icp.company_size or ""
 
-        for industry in industries[:2]:
-            geo = geos[0] if geos else ""
+        for i, industry in enumerate(industries):
+            geo = geos[i % len(geos)]
 
             parts = []
             if industry:
