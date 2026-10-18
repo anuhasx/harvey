@@ -63,8 +63,7 @@ because the dashboard has no login of its own and can edit `.env` and send email
 **Add or change a dashboard login** (as root; it prompts for the password, so
 it never lands in your shell history):
 
-    printf "admin:$(openssl passwd -apr1)
-" >> /www/server/nginx/conf/harvey.htpasswd
+    printf "admin:$(openssl passwd -apr1)\n" >> /www/server/nginx/conf/harvey.htpasswd
 
 The same login works for both dashboards. To remove a user, delete its line
 from that file. No nginx reload needed.
