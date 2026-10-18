@@ -44,11 +44,36 @@ Then delete `harvey_deploy` from your PC, or keep it somewhere safe.
 Gmail: run `harvey gmail auth` on your PC, then copy `data/gmail_token.json`
 to `/www/wwwroot/harvey/data/` (owned by harvey).
 
+## Markets and dashboards
+
+| Market | Folder | Agent service | Dashboard |
+|---|---|---|---|
+| Sri Lanka | `/www/wwwroot/harvey` | `harvey` | https://harvey.tryso.lk (port 5555) |
+| Italy (lead list only, email off) | `/www/wwwroot/harvey-italy` | `harvey-italy` | https://harvey-italy.tryso.lk (port 5556) |
+
+Each market has its own `.env`, `harvey.local.yaml`, `skills/product_knowledge.md`
+and `data/`. A deploy updates the code in both and restarts the agent and its
+dashboard.
+
+The dashboards run as `harvey-dashboard` / `harvey-italy-dashboard`, bound to
+127.0.0.1 only. nginx (`deploy/nginx/*.conf`, installed in
+`/www/server/panel/vhost/nginx/`) publishes them over HTTPS behind a password,
+because the dashboard has no login of its own and can edit `.env` and send email.
+
+**Add or change a dashboard login** (as root; it prompts for the password, so
+it never lands in your shell history):
+
+    printf "admin:$(openssl passwd -apr1)
+" >> /www/server/panel/vhost/nginx/harvey.htpasswd
+
+The same login works for both dashboards. To remove a user, delete its line
+from that file. No nginx reload needed.
+
 ## Day to day
 
-    journalctl -u harvey -f                         # live logs
-    ssh -L 5555:localhost:5555 root@161.97.118.140  # then, on the server:
-    su - harvey -c 'cd harvey && .venv/bin/harvey dashboard'
+    journalctl -u harvey -f           # Sri Lanka agent logs
+    journalctl -u harvey-italy -f     # Italy agent logs
+    systemctl restart harvey          # restart an agent
 
-Open http://localhost:5555 on your PC. Don't open port 5555 in the firewall —
-the dashboard has no login.
+Don't open ports 5555/5556 in the firewall — reach the dashboards through
+the HTTPS sites above.

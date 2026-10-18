@@ -23,6 +23,11 @@ sudo /usr/bin/systemctl restart "$SERVICE"
 sleep 5
 if sudo /usr/bin/systemctl is-active "$SERVICE"; then
     echo "$SERVICE restarted on $(cat .deployed-sha 2>/dev/null || echo unknown)"
+    # The always-on dashboard runs the same code, so it restarts with it.
+    if systemctl cat "$SERVICE-dashboard" >/dev/null 2>&1; then
+        sudo /usr/bin/systemctl restart "$SERVICE-dashboard"
+        echo "$SERVICE-dashboard restarted"
+    fi
 else
     sudo /usr/bin/systemctl status "$SERVICE" --no-pager -n 40 || true
     exit 1

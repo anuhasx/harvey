@@ -1,0 +1,19 @@
+# Always-on Harvey dashboard (Sri Lanka), local only. nginx publishes it with a
+# password (deploy/nginx/); never bind it to 0.0.0.0 — it has no login of its own.
+[Unit]
+Description=Harvey dashboard (Sri Lanka)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=harvey
+Group=harvey
+WorkingDirectory=/www/wwwroot/harvey
+Environment=PATH=/www/wwwroot/harvey/.venv/bin:/home/harvey/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/www/wwwroot/harvey/.venv/bin/harvey dashboard --host 127.0.0.1 --port 5555
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

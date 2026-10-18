@@ -51,11 +51,13 @@ sudo -u "$APP_USER" -H bash -c 'curl -fsSL https://claude.ai/install.sh | sh' ||
 # Service + narrow sudo rule for the deploy.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # One unit per market instance; each has its own folder, config and database.
-SERVICES="harvey harvey-italy"
+SERVICES="harvey harvey-italy harvey-dashboard harvey-italy-dashboard"
 RULES=""
 for svc in $SERVICES; do
     install -m 644 "$SCRIPT_DIR/$svc.service" /etc/systemd/system/$svc.service
-    install -d -o "$APP_USER" -g "$APP_USER" "$(dirname "$APP_DIR")/$svc" "$(dirname "$APP_DIR")/$svc/data"
+    case "$svc" in *-dashboard) ;; *)
+        install -d -o "$APP_USER" -g "$APP_USER" "$(dirname "$APP_DIR")/$svc" "$(dirname "$APP_DIR")/$svc/data" ;;
+    esac
     # Listed one by one: a wildcard would also match "harvey sshd".
     RULES="$RULES${RULES:+, }/usr/bin/systemctl restart $svc, /usr/bin/systemctl is-active $svc, /usr/bin/systemctl status $svc *"
 done
