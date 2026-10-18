@@ -61,19 +61,34 @@ jobs:
             echo "::warning::VPS_KNOWN_HOSTS not set — trusting the host key on first use."
             ssh-keyscan -H "$VPS_HOST" > ~/.ssh/known_hosts
           fi
-          printf 'Host vps\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n' \
+          # The VPS gets SSH brute-force traffic that fills sshd's MaxStartups
+          # slots, so a connection is sometimes dropped: retry at the SSH level.
+          printf 'Host vps\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n  IdentitiesOnly yes\n  ConnectionAttempts 5\n  ConnectTimeout 15\n  ServerAliveInterval 30\n' \
             "$VPS_HOST" "$VPS_USER" > ~/.ssh/config
 
       - name: Copy code
         run: |
           git rev-parse --short HEAD > .deployed-sha
-          rsync -az --delete \
-            --exclude '.git/' --exclude '.github/' --exclude 'tests/' \
-            --exclude '.venv/' --exclude 'data/' --exclude '.env' \
-            --exclude 'harvey.local.yaml' \
-            --exclude 'skills/product_knowledge.md' --exclude 'skills/competitive_intel.md' \
-            --exclude 'linkedin_cookies.json' --exclude '*.egg-info/' \
-            ./ "vps:$APP_DIR/"
+          for attempt in 1 2 3 4 5; do
+            rsync -az --delete \
+              --exclude '.git/' --exclude '.github/' --exclude 'tests/' \
+              --exclude '.venv/' --exclude 'data/' --exclude '.env' \
+              --exclude 'harvey.local.yaml' \
+              --exclude 'skills/product_knowledge.md' --exclude 'skills/competitive_intel.md' \
+              --exclude 'linkedin_cookies.json' --exclude '*.egg-info/' \
+              --exclude 'logs/' --exclude '*_venv/' --exclude '.user.ini' \
+              ./ "vps:$APP_DIR/" && break
+            [ "$attempt" = 5 ] && exit 1
+            echo "rsync failed, retrying in 20s"; sleep 20
+          done
 
       - name: Install and restart
-        run: ssh vps "bash $APP_DIR/deploy/remote-deploy.sh"
+        run: |
+          for attempt in 1 2 3; do
+            ssh vps "bash $APP_DIR/deploy/remote-deploy.sh" && exit 0
+            rc=$?
+            # 255 = SSH itself failed (dropped connection); anything else is a real deploy failure.
+            [ "$rc" = 255 ] || exit "$rc"
+            echo "SSH dropped, retrying in 20s"; sleep 20
+          done
+          exit 1
